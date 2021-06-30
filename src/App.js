@@ -1,35 +1,58 @@
 import { useState } from "react";
 import "./App.css";
-import firebase from "./base";
+import { storage } from "./base";
+
+const bucketName = "images";
 
 function App() {
-  let [files, setFiles] = useState(null);
+  const [image, setImage] = useState(null);
+  const [url, setUrl] = useState("");
+  const [progress, setProgress] = useState(0);
 
-  const onChange = (e) => {
-    e.preventDefault();
-    setFiles((files = e.target.files));
+  const handleChange = e => {
+    if (e.target.files[0]) {
+      setImage(e.target.files[0]);
+    }
   };
 
-  const onUpload = () => {
-    let bucketName = "images";
-    let file = files[0];
-    let storageRef = firebase.storage().ref(`${bucketName}/ ${file.name}`);
-    let uploadTask = storageRef.put(file);
-    uploadTask.on(firebase.storage.TaskEvent.STATE_CHANGED, (uploadTask) => {
-      // let downloadURL = uploadTask.snapshot.downloadURL
-      storageRef
-        // .child("images/" + file.name)
-        .getDownloadURL()
-        .then((res) => {
-          console.log("res >>", res);
-        });
-    });
+  const handleUpload = () => {
+    const uploadTask = storage.ref(`${bucketName}/${image.name}`).put(image);
+    uploadTask.on(
+      "state_changed",
+      snapshot => {
+        const progress = Math.round(
+          (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+        );
+        setProgress(progress);
+      },
+      error => {
+        console.log(error);
+      },
+      () => {
+        storage
+          .ref(bucketName)
+          .child(image.name)
+          .getDownloadURL()
+          .then(url => {
+            setUrl(url);
+          });
+      }
+    );
   };
+
+  console.log("image: ", image);
 
   return (
-    <div className="App">
-      <input type="file" onChange={onChange} />
-      <button onClick={onUpload}>Upload</button>
+    <div>
+      <progress value={progress} max="100" />
+      <br />
+      <br />
+      <input type="file" onChange={handleChange} />
+      <button onClick={handleUpload}>Upload</button>
+      <br />
+      {url}
+      <br />
+      <img src={url || "http://via.placeholder.com/300"} alt="firebase-image" />
     </div>
   );
 }
